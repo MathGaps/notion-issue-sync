@@ -8,6 +8,7 @@ async function run() {
     const token = core.getInput("token");
     const octokit = github.getOctokit(token);
     const event = JSON.parse(core.getInput("event"));
+    core.info("stupdi")
     core.info(github.context.payload, event);
     const {
       repository: {
