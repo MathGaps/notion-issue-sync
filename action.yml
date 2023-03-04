@@ -7,6 +7,9 @@ inputs:
   token:
     description: Read-scoped GitHub token
     required: true
+  event:
+    description: "Should be ${{ toJson(github.event) }} for extracting PR/review state"
+    required: true
 runs:
   using: "node16"
   main: "dist/index.js"
