@@ -7,40 +7,39 @@ async function run() {
     const webhook = core.getInput("webhook");
     const token = core.getInput("token");
     const octokit = github.getOctokit(token);
-    const event = JSON.parse(core.getInput('event'));
-    console.log(github.context.payload)
+    const event = JSON.parse(core.getInput("event"));
+    core.info(github.context.payload, event);
     const {
       repository: {
-        closingIssuesReferences: { nodes: issues },
+        pullRequest: {
+          closingIssuesReferences: { nodes: issues },
+        },
       },
     } = await octokit.graphql(
       `
     {
       repository(owner: $owner, name: $name) {
-        closingIssuesReferences {
-          nodes {
-            body
+        pullRequest(number: $pr) {
+          closingIssuesReferences {
+            nodes {
+              body
+            }
           }
         }
       }
     }
 `,
       {
-        owner: github.context.repo.owner,
-        name: github.context.repo.name,
+        $owner: github.context.repo.owner,
+        $name: github.context.repo.name,
+        $pr: event.pull_request.number,
       }
     );
     const ctx = {
       webhook,
       pr,
-    }
-    await updateStateForIssues(
-      {
-        webhook,
-
-      },
-      issues
-    );
+    };
+    await updateStateForIssues(ctx, issues);
   } catch (error) {
     core.setFailed(error.message);
   }
