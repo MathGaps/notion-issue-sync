@@ -1,13 +1,11 @@
-name: 'Wait'
-description: 'Wait a designated number of milliseconds'
+name: Notion Issue Sync
+description: Invokes a provided Make web-hook for syncing the state of an issue linked to the active PR
 inputs:
-  milliseconds:  # id of input
-    description: 'number of milliseconds to wait'
+  webhook:
+    description: Make webhook for syncing issue state with Notion
     required: true
-    default: '1000'
-outputs:
-  time: # output will be available to future steps
-    description: 'The current time after waiting'
+  token:
+    description: Read-scoped GitHub token
 runs:
-  using: 'node16'
-  main: 'dist/index.js'
+  using: "node16"
+  main: "dist/index.js"
