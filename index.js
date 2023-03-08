@@ -8,7 +8,6 @@ async function run() {
     const token = core.getInput("token");
     const octokit = github.getOctokit(token);
     const event = JSON.parse(core.getInput("event"));
-    core.info("stupdi")
     core.info(github.context.payload, event);
     const {
       repository: {
@@ -52,6 +51,7 @@ async function updateStateForIssues(webhook, issues) {
     fetch(webhook, {
       body: JSON.stringify({
         id: databaseID,
+        // state: 'changes-requested' | 'in-pr' | 'in-qa' | 'in-review' | 'in-progress'
       }),
     });
   }
