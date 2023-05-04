@@ -117,7 +117,7 @@ function sendWebhookStateUpdate(payload) {
     return __awaiter(this, void 0, void 0, function* () {
         for (const { body } of payload.issues) {
             if (body.includes('ID:')) {
-                const ID = body.split('ID: ')[1];
+                const ID = body.split('ID: ')[1].trim();
                 yield axios_1.default.post(payload.webhook, {
                     id: ID,
                     state: mapPRStateToNotionState(payload.event)
