@@ -30,7 +30,7 @@ export async function sendWebhookStateUpdate(
 ): Promise<void> {
   for (const {body} of payload.issues) {
     if (body.includes('ID:')) {
-      const ID = body.split('ID: ')[1]
+      const ID = body.split('ID: ')[1].trim()
       await axios.post(payload.webhook, {
         id: ID,
         state: mapPRStateToNotionState(payload.event)
