@@ -80,13 +80,15 @@ class Github {
     }
     addPrefixToPRTitle(prefix) {
         return __awaiter(this, void 0, void 0, function* () {
-            const newTitle = prefix + this.ghEvent.title;
-            yield this.octokit.rest.pulls.update({
-                owner: this.ghEvent.owner,
-                pull_number: this.ghEvent.pr,
-                repo: this.ghEvent.name,
-                title: newTitle
-            });
+            if (!this.ghEvent.title.includes(prefix)) {
+                const newTitle = prefix + this.ghEvent.title;
+                yield this.octokit.rest.pulls.update({
+                    owner: this.ghEvent.owner,
+                    pull_number: this.ghEvent.pr,
+                    repo: this.ghEvent.name,
+                    title: newTitle
+                });
+            }
         });
     }
 }
@@ -150,8 +152,8 @@ function run() {
             const gh = new github_1.default(token, event);
             const issues = yield gh.getAttachedIssues();
             for (const { body } of issues) {
-                if (body.includes("IDNo:")) {
-                    const prefix = `[${body.split("IDNo:")[1].trim()}] `;
+                if (body.includes('IDNo:')) {
+                    const prefix = `[${body.split('IDNo:')[1].trim()}] `;
                     yield gh.addPrefixToPRTitle(prefix);
                 }
             }
