@@ -1,5 +1,5 @@
 import * as github from '@actions/github'
-import { GithubEvent, Issue, RepositoryResponse } from '../types'
+import {GithubEvent, Issue, RepositoryResponse} from '../types'
 
 export default class Github {
   private octokit

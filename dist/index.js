@@ -48,7 +48,7 @@ class Github {
         this.ghEvent = {
             action: event.action,
             owner: github.context.repo.owner,
-            name: github.context.repo.repo,
+            repoName: github.context.repo.repo,
             pr: event.pull_request.number,
             title: event.pull_request.title,
             merged: event.pull_request.merged,
@@ -72,7 +72,7 @@ class Github {
       }
       `, {
                 owner: this.ghEvent.owner,
-                name: this.ghEvent.name,
+                name: this.ghEvent.repoName,
                 pr: this.ghEvent.pr
             });
             return result.repository.pullRequest.closingIssuesReferences.nodes;
@@ -85,7 +85,7 @@ class Github {
                 yield this.octokit.rest.pulls.update({
                     owner: this.ghEvent.owner,
                     pull_number: this.ghEvent.pr,
-                    repo: this.ghEvent.name,
+                    repo: this.ghEvent.repoName,
                     title: newTitle
                 });
             }
