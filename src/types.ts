@@ -5,7 +5,7 @@ type ReviewState = 'commented' | 'change_requested' | 'approved'
 export type GithubEvent = {
   action: Action
   owner: string
-  name: string
+  repoName: string
   pr: number
   title: string
   merged?: boolean
