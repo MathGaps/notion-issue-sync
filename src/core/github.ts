@@ -1,5 +1,5 @@
 import * as github from '@actions/github'
-import {GithubEvent, Issue, RepositoryResponse} from '../types'
+import { GithubEvent, Issue, RepositoryResponse } from '../types'
 
 export default class Github {
   private octokit
@@ -45,12 +45,14 @@ export default class Github {
   }
 
   async addPrefixToPRTitle(prefix: string): Promise<void> {
-    const newTitle = prefix + this.ghEvent.title
-    await this.octokit.rest.pulls.update({
-      owner: this.ghEvent.owner,
-      pull_number: this.ghEvent.pr,
-      repo: this.ghEvent.name,
-      title: newTitle
-    })
+    if (!this.ghEvent.title.includes(prefix)) {
+      const newTitle = prefix + this.ghEvent.title
+      await this.octokit.rest.pulls.update({
+        owner: this.ghEvent.owner,
+        pull_number: this.ghEvent.pr,
+        repo: this.ghEvent.name,
+        title: newTitle
+      })
+    }
   }
 }
