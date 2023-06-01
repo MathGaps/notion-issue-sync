@@ -7,6 +7,7 @@ export type GithubEvent = {
   owner: string
   name: string
   pr: number
+  title: string
   merged?: boolean
   reviewState?: ReviewState
   body?: string

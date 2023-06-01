@@ -1,32 +1,56 @@
 import * as github from '@actions/github'
 import {GithubEvent, Issue, RepositoryResponse} from '../types'
 
-export async function getAttachedIssues(
-  token: string,
-  ghEvent: GithubEvent
-): Promise<Issue[]> {
-  const octokit = github.getOctokit(token)
+export default class Github {
+  private octokit
+  private ghEvent: GithubEvent
+  constructor(token: string, jsonEvent: string) {
+    this.octokit = github.getOctokit(token)
+    const event = JSON.parse(jsonEvent)
+    this.ghEvent = {
+      action: event.action,
+      owner: github.context.repo.owner,
+      name: github.context.repo.repo,
+      pr: event.pull_request.number,
+      title: event.pull_request.title,
+      merged: event.pull_request.merged,
+      body: event.pull_request.body,
+      reviewState: event.review?.state
+    }
+  }
 
-  const result: RepositoryResponse = await octokit.graphql(
-    `
-      query($owner: String!, $name: String!, $pr: Int!) {
-      repository(owner: $owner, name: $name) {
-        pullRequest(number: $pr) {
-          closingIssuesReferences(first: 10) {
-            nodes {
-              body
+  async getAttachedIssues(): Promise<Issue[]> {
+    const result: RepositoryResponse = await this.octokit.graphql(
+      `
+        query($owner: String!, $name: String!, $pr: Int!) {
+        repository(owner: $owner, name: $name) {
+          pullRequest(number: $pr) {
+            closingIssuesReferences(first: 10) {
+              nodes {
+                body
+              }
             }
           }
         }
       }
-    }
-    `,
-    {
-      owner: ghEvent.owner,
-      name: ghEvent.name,
-      pr: ghEvent.pr
-    }
-  )
+      `,
+      {
+        owner: this.ghEvent.owner,
+        name: this.ghEvent.name,
+        pr: this.ghEvent.pr
+      }
+    )
 
-  return result.repository.pullRequest.closingIssuesReferences.nodes
+    return result.repository.pullRequest.closingIssuesReferences.nodes
+  }
+
+  async addPrefixToPRTitle(prefix: string): Promise<void> {
+    const newTitle = prefix + this.ghEvent.title
+    await this.octokit.rest.pulls.update({
+      owner: this.ghEvent.owner,
+      pull_number: this.ghEvent.pr,
+      repo: this.ghEvent.name,
+      title: newTitle
+    })
+  }
 }
