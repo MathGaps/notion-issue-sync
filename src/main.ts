@@ -11,9 +11,8 @@ async function run(): Promise<void> {
     })
 
     const gh = new Github(token, event)
-    const prefix = `[${gh.githubEvent.branch}]`;
+    const prefix = `[${gh.githubEvent.branch}]`
     await gh.addPrefixToPRTitle(prefix)
-
   } catch (error) {
     core.info(JSON.stringify(error))
     if (error instanceof Error) core.setFailed(error.message)

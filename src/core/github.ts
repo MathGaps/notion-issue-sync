@@ -1,5 +1,5 @@
 import * as github from '@actions/github'
-import { GithubEvent } from '../types'
+import {GithubEvent} from '../types'
 
 export default class Github {
   private octokit
@@ -12,7 +12,7 @@ export default class Github {
       repoName: github.context.repo.repo,
       pr: event.pull_request.number,
       title: event.pull_request.title,
-      branch: event.pull_request.head.ref,
+      branch: event.pull_request.head.ref
     }
   }
   get githubEvent(): GithubEvent {

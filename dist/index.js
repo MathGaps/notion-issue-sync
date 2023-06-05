@@ -42,41 +42,18 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 const github = __importStar(__nccwpck_require__(5438));
 class Github {
     constructor(token, jsonEvent) {
-        var _a;
         this.octokit = github.getOctokit(token);
         const event = JSON.parse(jsonEvent);
         this.ghEvent = {
-            action: event.action,
             owner: github.context.repo.owner,
             repoName: github.context.repo.repo,
             pr: event.pull_request.number,
             title: event.pull_request.title,
-            merged: event.pull_request.merged,
-            body: event.pull_request.body,
-            reviewState: (_a = event.review) === null || _a === void 0 ? void 0 : _a.state
+            branch: event.pull_request.head.ref,
         };
     }
-    getAttachedIssues() {
-        return __awaiter(this, void 0, void 0, function* () {
-            const result = yield this.octokit.graphql(`
-        query($owner: String!, $name: String!, $pr: Int!) {
-        repository(owner: $owner, name: $name) {
-          pullRequest(number: $pr) {
-            closingIssuesReferences(first: 10) {
-              nodes {
-                body
-              }
-            }
-          }
-        }
-      }
-      `, {
-                owner: this.ghEvent.owner,
-                name: this.ghEvent.repoName,
-                pr: this.ghEvent.pr
-            });
-            return result.repository.pullRequest.closingIssuesReferences.nodes;
-        });
+    get githubEvent() {
+        return this.ghEvent;
     }
     addPrefixToPRTitle(prefix) {
         return __awaiter(this, void 0, void 0, function* () {
@@ -150,13 +127,8 @@ function run() {
                 required: true
             });
             const gh = new github_1.default(token, event);
-            const issues = yield gh.getAttachedIssues();
-            for (const { body } of issues) {
-                if (body.includes('IDNo:')) {
-                    const prefix = `[${body.split('IDNo:')[1].trim()}] `;
-                    yield gh.addPrefixToPRTitle(prefix);
-                }
-            }
+            const prefix = `[${gh.githubEvent.branch}]`;
+            yield gh.addPrefixToPRTitle(prefix);
         }
         catch (error) {
             core.info(JSON.stringify(error));
