@@ -1,39 +1,7 @@
-type Action = 'opened' | 'closed' | 'reopened' | 'submitted' | 'created'
-
-type ReviewState = 'commented' | 'change_requested' | 'approved'
-
 export type GithubEvent = {
-  action: Action
   owner: string
-  name: string
+  repoName: string
   pr: number
-  merged?: boolean
-  reviewState?: ReviewState
-  body?: string
+  title: string
+  branch: string
 }
-
-export type Issue = {
-  body: string
-}
-
-export type RepositoryResponse = {
-  repository: {
-    pullRequest: {
-      closingIssuesReferences: {
-        nodes: Issue[]
-      }
-    }
-  }
-}
-
-export type UpdateStatePayload = {
-  webhook: string
-  event: GithubEvent
-  issues: Issue[]
-}
-
-export type NotionState =
-  | 'In progress'
-  | 'Archived'
-  | 'For QA'
-  | 'Fixes Required'

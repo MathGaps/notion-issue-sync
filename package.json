@@ -1,6 +1,6 @@
 {
   "name": "Notion Issue Sync",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "private": true,
   "description": "Invokes a provided Make web-hook for syncing the state of an issue linked to the active PR",
   "main": "lib/main.js",

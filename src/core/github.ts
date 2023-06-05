@@ -1,32 +1,32 @@
 import * as github from '@actions/github'
-import {GithubEvent, Issue, RepositoryResponse} from '../types'
+import {GithubEvent} from '../types'
 
-export async function getAttachedIssues(
-  token: string,
-  ghEvent: GithubEvent
-): Promise<Issue[]> {
-  const octokit = github.getOctokit(token)
-
-  const result: RepositoryResponse = await octokit.graphql(
-    `
-      query($owner: String!, $name: String!, $pr: Int!) {
-      repository(owner: $owner, name: $name) {
-        pullRequest(number: $pr) {
-          closingIssuesReferences(first: 10) {
-            nodes {
-              body
-            }
-          }
-        }
-      }
+export default class Github {
+  private octokit
+  private ghEvent: GithubEvent
+  constructor(token: string, jsonEvent: string) {
+    this.octokit = github.getOctokit(token)
+    const event = JSON.parse(jsonEvent)
+    this.ghEvent = {
+      owner: github.context.repo.owner,
+      repoName: github.context.repo.repo,
+      pr: event.pull_request.number,
+      title: event.pull_request.title,
+      branch: event.pull_request.head.ref
     }
-    `,
-    {
-      owner: ghEvent.owner,
-      name: ghEvent.name,
-      pr: ghEvent.pr
+  }
+  get githubEvent(): GithubEvent {
+    return this.ghEvent
+  }
+  async addPrefixToPRTitle(prefix: string): Promise<void> {
+    if (!this.ghEvent.title.includes(prefix)) {
+      const newTitle = prefix + this.ghEvent.title
+      await this.octokit.rest.pulls.update({
+        owner: this.ghEvent.owner,
+        pull_number: this.ghEvent.pr,
+        repo: this.ghEvent.repoName,
+        title: newTitle
+      })
     }
-  )
-
-  return result.repository.pullRequest.closingIssuesReferences.nodes
+  }
 }
