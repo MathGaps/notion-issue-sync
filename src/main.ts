@@ -11,13 +11,9 @@ async function run(): Promise<void> {
     })
 
     const gh = new Github(token, event)
-    const issues = await gh.getAttachedIssues()
-    for (const {body} of issues) {
-      if (body.includes('IDNo:')) {
-        const prefix = `[${body.split('IDNo:')[1].trim()}] `
-        await gh.addPrefixToPRTitle(prefix)
-      }
-    }
+    const prefix = `[${gh.githubEvent.branch}]`;
+    await gh.addPrefixToPRTitle(prefix)
+
   } catch (error) {
     core.info(JSON.stringify(error))
     if (error instanceof Error) core.setFailed(error.message)

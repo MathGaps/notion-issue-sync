@@ -1,5 +1,5 @@
 import * as github from '@actions/github'
-import {GithubEvent, Issue, RepositoryResponse} from '../types'
+import { GithubEvent } from '../types'
 
 export default class Github {
   private octokit
@@ -8,42 +8,16 @@ export default class Github {
     this.octokit = github.getOctokit(token)
     const event = JSON.parse(jsonEvent)
     this.ghEvent = {
-      action: event.action,
       owner: github.context.repo.owner,
       repoName: github.context.repo.repo,
       pr: event.pull_request.number,
       title: event.pull_request.title,
-      merged: event.pull_request.merged,
-      body: event.pull_request.body,
-      reviewState: event.review?.state
+      branch: event.pull_request.head.ref,
     }
   }
-
-  async getAttachedIssues(): Promise<Issue[]> {
-    const result: RepositoryResponse = await this.octokit.graphql(
-      `
-        query($owner: String!, $name: String!, $pr: Int!) {
-        repository(owner: $owner, name: $name) {
-          pullRequest(number: $pr) {
-            closingIssuesReferences(first: 10) {
-              nodes {
-                body
-              }
-            }
-          }
-        }
-      }
-      `,
-      {
-        owner: this.ghEvent.owner,
-        name: this.ghEvent.repoName,
-        pr: this.ghEvent.pr
-      }
-    )
-
-    return result.repository.pullRequest.closingIssuesReferences.nodes
+  get githubEvent(): GithubEvent {
+    return this.ghEvent
   }
-
   async addPrefixToPRTitle(prefix: string): Promise<void> {
     if (!this.ghEvent.title.includes(prefix)) {
       const newTitle = prefix + this.ghEvent.title

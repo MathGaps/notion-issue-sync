@@ -1,9 +1,6 @@
 name: Notion Issue Sync
 description: Invokes a provided Make web-hook for syncing the state of an issue linked to the active PR
 inputs:
-  webhook:
-    required: true
-    description: 'Integrations web-hook URL'
   token:
     required: true
     description: 'Read-scoped GitHub token'
