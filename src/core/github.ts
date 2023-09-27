@@ -19,7 +19,11 @@ export default class Github {
     return this.ghEvent
   }
   async addPrefixToPRTitle(prefix: string): Promise<void> {
-    if (!this.ghEvent.title.includes(prefix)) {
+    if (
+      !this.ghEvent.title.includes(prefix) &&
+      !this.ghEvent.title.includes('TUTT-') &&
+      !this.ghEvent.title.includes('TUT-')
+    ) {
       const newTitle = prefix + this.ghEvent.title
       await this.octokit.rest.pulls.update({
         owner: this.ghEvent.owner,
