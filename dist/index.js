@@ -49,7 +49,7 @@ class Github {
             repoName: github.context.repo.repo,
             pr: event.pull_request.number,
             title: event.pull_request.title,
-            branch: event.pull_request.head.ref,
+            branch: event.pull_request.head.ref
         };
     }
     get githubEvent() {
@@ -57,7 +57,9 @@ class Github {
     }
     addPrefixToPRTitle(prefix) {
         return __awaiter(this, void 0, void 0, function* () {
-            if (!this.ghEvent.title.includes(prefix)) {
+            if (!this.ghEvent.title.includes(prefix) &&
+                !this.ghEvent.title.includes("TUTT-") &&
+                !this.ghEvent.title.includes("TUT-")) {
                 const newTitle = prefix + this.ghEvent.title;
                 yield this.octokit.rest.pulls.update({
                     owner: this.ghEvent.owner,
