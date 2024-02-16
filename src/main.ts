@@ -1,5 +1,5 @@
 import * as core from '@actions/core'
-import Github from './core/github'
+import Action from './core/github'
 
 async function run(): Promise<void> {
   try {
@@ -10,9 +10,7 @@ async function run(): Promise<void> {
       required: true
     })
 
-    const gh = new Github(token, event)
-    const prefix = `[${gh.githubEvent.branch}]`
-    await gh.addPrefixToPRTitle(prefix)
+    await new Action(token, event).run()
   } catch (error) {
     core.info(JSON.stringify(error))
     if (error instanceof Error) core.setFailed(error.message)

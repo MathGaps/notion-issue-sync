@@ -1,7 +1,15 @@
 export type GithubEvent = {
-  owner: string
-  repoName: string
-  pr: number
-  title: string
-  branch: string
+  label:
+    | {
+        name: string
+      }
+    | undefined
+  pull_request: {
+    number: number
+    title: string
+    head: {
+      // Branch
+      ref: string
+    }
+  }
 }
