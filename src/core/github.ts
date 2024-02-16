@@ -1,6 +1,5 @@
 import * as github from '@actions/github'
 import {GithubEvent} from '../types'
-import fetch from 'node-fetch'
 
 export default class Action {
   private octokit
@@ -12,7 +11,7 @@ export default class Action {
   }
 
   async run(): Promise<void> {
-    if (this.event.label?.name == 'Released on @stable') {
+    if (this.event.label?.name === 'Released on @stable') {
       await this.markAsReleased()
     } else {
       await this.addPrefixToPRTitle()
