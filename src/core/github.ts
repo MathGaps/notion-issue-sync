@@ -11,7 +11,7 @@ export default class Action {
   }
 
   async run(): Promise<void> {
-    if (this.event.label?.name === 'Released on @main') {
+    if (this.event.label?.name === 'CI - Released on @main') {
       await this.markAsReleased()
     } else {
       await this.addPrefixToPRTitle()
