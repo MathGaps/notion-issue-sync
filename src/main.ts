@@ -1,20 +1,20 @@
 import * as core from '@actions/core'
-import Action from './core/github'
+import * as github from '@actions/github'
+import {run} from './run'
 
-async function run(): Promise<void> {
+// Non-fatal by design: warnings only, never setFailed, so a Notion hiccup or a
+// missing token can't turn a PR check red.
+async function main(): Promise<void> {
   try {
-    const token = core.getInput('token', {
-      required: true
-    })
-    const event = core.getInput('event', {
-      required: true
-    })
-
-    await new Action(token, event).run()
+    const token = core.getInput('notion_token')
+    if (!token) {
+      core.warning('notion_token not set; skipping (non-fatal).')
+      return
+    }
+    await run(github.context.payload, token)
   } catch (error) {
-    core.info(JSON.stringify(error))
-    if (error instanceof Error) core.setFailed(error.message)
+    core.warning(`notion-status: ${error instanceof Error ? error.message : String(error)}`)
   }
 }
 
-run()
+main()

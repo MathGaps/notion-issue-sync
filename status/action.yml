@@ -1,9 +1,13 @@
-name: Notion PR Status Sync
+name: Notion PR Status Sync (python)
 description: On PR lifecycle events, update the PR row in the Notion Pull Requests DB and the linked issue's Status (opened→In PR, changes-requested→Fixes Required, merged→For QA when the last PR merges).
 inputs:
   notion_token:
     required: true
     description: Notion internal-integration token, shared with the Tech Issues + Pull Requests databases.
 runs:
-  using: 'node20'
-  main: 'dist/index.js'
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        NOTION_TOKEN: ${{ inputs.notion_token }}
+      run: python3 "${{ github.action_path }}/notion_status.py"
