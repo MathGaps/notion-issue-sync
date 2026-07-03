@@ -11,6 +11,6 @@ jobs:
       # @refactor = the branch that has the new action (PR #67). This test branch
       # is off main, so `uses: ./` would run the OLD action. Switch to @main (or ./)
       # once #67 is merged.
-      - uses: MathGaps/notion-issue-sync@refactor
+      - uses: MathGaps/notion-issue-sync@main
         with:
           notion_token: ${{ secrets.NOTION_TOKEN }}
