@@ -1,0 +1,16 @@
+name: notion-test
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review, closed]
+  pull_request_review:
+    types: [submitted]
+jobs:
+  notion:
+    runs-on: ubuntu-latest
+    steps:
+      # @refactor = the branch that has the new action (PR #67). This test branch
+      # is off main, so `uses: ./` would run the OLD action. Switch to @main (or ./)
+      # once #67 is merged.
+      - uses: MathGaps/notion-issue-sync@refactor
+        with:
+          notion_token: ${{ secrets.NOTION_TOKEN }}
