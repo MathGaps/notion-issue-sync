@@ -1,23 +1,26 @@
 #!/usr/bin/env python3
-"""Offline tests for link_pr.py (no network / no token needed)."""
+"""Offline tests for link_pr.py (no network / no token needed).
+
+Uses the real "Test issue for github sync" page id: 390bfd2f-80ba-803d-968d-d95085ebedad
+"""
 import os
 import subprocess
 import sys
 
 import link_pr
 
-EXPECT = "38bbfd2f-80ba-805f-b7d5-cb4f3a7988f2"
+EXPECT = "390bfd2f-80ba-803d-968d-d95085ebedad"
 CASES = [
-    ("https://app.notion.com/p/Continue-with-Google-is-failing-38bbfd2f80ba805fb7d5cb4f3a7988f2?pvs=8&n=github_linkback", EXPECT),
-    ("https://www.notion.so/Continue-with-Google-is-failing-38bbfd2f80ba805fb7d5cb4f3a7988f2", EXPECT),
-    # dashed UUID in path (previously misaligned by global dash-stripping)
-    ("https://www.notion.so/Title-38bbfd2f-80ba-805f-b7d5-cb4f3a7988f2", EXPECT),
-    # slug ends in a hex char right before the id (previously shifted the window)
-    ("https://www.notion.so/Continue-38bbfd2f80ba805fb7d5cb4f3a7988f2?v=abc", EXPECT),
-    ("38bbfd2f80ba805fb7d5cb4f3a7988f2", EXPECT),
-    ("38bbfd2f-80ba-805f-b7d5-cb4f3a7988f2", EXPECT),
+    # the copy-link URL: page id is in the path; the ?v=<32hex> is a *view* id that must be ignored
+    ("https://app.notion.com/p/tutero/Test-issue-for-github-sync-390bfd2f80ba803d968dd95085ebedad?v=390bfd2f80ba80f89f1a000cceffab6f&source=copy_link", EXPECT),
+    ("https://www.notion.so/Test-issue-for-github-sync-390bfd2f80ba803d968dd95085ebedad", EXPECT),
+    # dashed UUID in the path
+    ("https://www.notion.so/Test-issue-390bfd2f-80ba-803d-968d-d95085ebedad", EXPECT),
+    # raw ids
+    ("390bfd2f80ba803d968dd95085ebedad", EXPECT),
+    ("390bfd2f-80ba-803d-968d-d95085ebedad", EXPECT),
     # page opened inside a database view: page id is in ?p=, db id is in the path
-    ("https://www.notion.so/team/Issues-DB-11112222333344445555666677778888?p=38bbfd2f80ba805fb7d5cb4f3a7988f2&pm=s", EXPECT),
+    ("https://www.notion.so/team/Issues-DB-11112222333344445555666677778888?p=390bfd2f80ba803d968dd95085ebedad&pm=s", EXPECT),
 ]
 
 failures = 0
@@ -46,7 +49,7 @@ def run(args, env=None):
 
 
 env_no_token = {k: v for k, v in os.environ.items() if k != "NOTION_TOKEN"}
-r = run(["--notion-url", "https://www.notion.so/x-38bbfd2f80ba805fb7d5cb4f3a7988f2",
+r = run(["--notion-url", "https://www.notion.so/Test-issue-390bfd2f80ba803d968dd95085ebedad",
          "--pr-url", "https://github.com/o/r/pull/1"], env=env_no_token)
 ok = r.returncode != 0 and "NOTION_TOKEN" in r.stderr
 failures += 0 if ok else 1
@@ -57,7 +60,7 @@ ok = r.returncode != 0
 failures += 0 if ok else 1
 print("%s  mutually-exclusive rejected (exit %s)" % ("ok " if ok else "FAIL", r.returncode))
 
-r = run(["--page-id", "38bbfd2f80ba805fb7d5cb4f3a7988f2"])
+r = run(["--page-id", "390bfd2f80ba803d968dd95085ebedad"])
 ok = r.returncode != 0
 failures += 0 if ok else 1
 print("%s  missing --pr-url rejected (exit %s)" % ("ok " if ok else "FAIL", r.returncode))
