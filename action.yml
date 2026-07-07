@@ -1,12 +1,9 @@
-name: Notion Issue Sync
-description: Invokes a provided Make web-hook for syncing the state of an issue linked to the active PR
+name: Notion PR Status Sync
+description: On PR lifecycle events, update the PR row in the Notion Pull Requests DB and the linked issue's Status (opened→In PR, changes-requested→Fixes Required, merged→For QA when the last PR merges).
 inputs:
-  token:
+  notion_token:
     required: true
-    description: 'Read-scoped GitHub token'
-  event:
-    required: true
-    description: 'Should be toJson(github.event) for extracting PR/review state'
+    description: Notion internal-integration token, shared with the Tech Issues + Pull Requests databases.
 runs:
-  using: 'node16'
+  using: 'node20'
   main: 'dist/index.js'
