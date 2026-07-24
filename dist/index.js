@@ -9606,20 +9606,28 @@ Object.defineProperty(exports, "__esModule", ({ value: true }));
 exports.config = void 0;
 // Workspace config. Property names match the Notion databases; update here if they change.
 exports.config = {
-    // Tech Issues (the issues database)
+    // Issues database (Tech Issues) — used only by the [ISSUE-N] body fallback.
     issuesDb: '0cabad23-7e62-4481-bd8c-48c8a4a08a7b',
     idProp: 'ID',
-    issueStatusProp: 'Status',
-    // Pull Requests database (one row per PR, related to its issue)
+    // Pull Requests database — one row per PR, related to its issue(s).
     prsDb: '390bfd2f-80ba-80f3-88b0-ce0b805397da',
     prUrlProp: 'URL',
-    prIssueRelation: '🐛 Tech Issues',
     prStatusProp: 'Status',
-    issueStatus: {
-        in_pr: 'In PR',
-        fixes_required: 'Fixes Required',
-        for_qa: 'For QA'
-    },
+    // One entry per PRs-DB relation column. The column identifies the linked issue's
+    // database, and carries that database's Status vocabulary. A Tech Issue only ever
+    // appears in the Tech column and a task only in the Task column.
+    relations: [
+        {
+            column: '🐛 Tech Issues',
+            statusProp: 'Status',
+            status: { in_pr: 'In PR', fixes_required: 'Fixes Required', for_qa: 'For QA' }
+        },
+        {
+            column: '✅ Task List',
+            statusProp: 'Status',
+            status: { in_pr: 'In PR', fixes_required: 'Fixes Required', for_qa: 'Ready For Review' }
+        }
+    ],
     prStatus: {
         draft: 'Draft',
         open: 'Open',
@@ -9746,7 +9754,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", ({ value: true }));
-exports.run = void 0;
+exports.run = exports.resolveIssues = void 0;
 const core = __importStar(__nccwpck_require__(2186));
 const config_1 = __nccwpck_require__(6373);
 const notion_1 = __nccwpck_require__(7967);
@@ -9764,10 +9772,19 @@ async function findPrRow(prUrl, token) {
     }
     return res.results?.[0] ?? null;
 }
-function issueIdFromRow(row) {
-    const rel = row?.properties?.[config_1.config.prIssueRelation]?.relation ?? [];
-    return rel[0]?.id ?? null;
+// Every issue linked to a PR row, across all relation columns (a PR can fix many issues).
+function resolveIssues(row) {
+    const issues = [];
+    for (const relation of config_1.config.relations) {
+        const rel = row?.properties?.[relation.column]?.relation ?? [];
+        for (const r of rel) {
+            if (r?.id)
+                issues.push({ pageId: r.id, relation });
+        }
+    }
+    return issues;
 }
+exports.resolveIssues = resolveIssues;
 async function resolveIssueViaBody(body, token) {
     const number = (0, transitions_1.parseUniqueId)(body);
     if (number == null)
@@ -9790,12 +9807,12 @@ async function setStatus(pageId, prop, name, token) {
     }
     return true;
 }
-// True if every linked PR row OTHER than the current one is Merged/Closed.
-// Returns null if the rows can't be read (caller decides).
-async function othersAllDone(issueId, currentRowId, token) {
+// True if every PR row OTHER than the current one linked to this issue (via the given
+// relation column) is Merged/Closed. Returns null if the rows can't be read.
+async function othersAllDone(issueId, currentRowId, relationColumn, token) {
     const done = new Set([config_1.config.prStatus.merged, config_1.config.prStatus.closed]);
     const res = await (0, notion_1.notion)('POST', `/databases/${config_1.config.prsDb}/query`, token, {
-        filter: { property: config_1.config.prIssueRelation, relation: { contains: issueId } }
+        filter: { property: relationColumn, relation: { contains: issueId } }
     });
     if (res.object === 'error')
         return null;
@@ -9808,7 +9825,7 @@ async function othersAllDone(issueId, currentRowId, token) {
             open.push([row.properties?.[config_1.config.prUrlProp]?.url, status]);
     }
     if (open.length) {
-        core.info(`sibling PR(s) not done: ${JSON.stringify(open)}`);
+        core.info(`issue ${issueId}: sibling PR(s) not done: ${JSON.stringify(open)}`);
         return false;
     }
     return true;
@@ -9817,8 +9834,16 @@ async function run(event, token) {
     const pr = event.pull_request ?? {};
     const prUrl = pr.html_url;
     const row = await findPrRow(prUrl, token);
-    const issueId = row ? issueIdFromRow(row) : await resolveIssueViaBody(pr.body, token);
-    // 1) PR row Status (Draft / Open / Merged / Closed)
+    // Every issue this PR is linked to (a PR can fix several, across both databases).
+    let issues;
+    if (row) {
+        issues = resolveIssues(row);
+    }
+    else {
+        const fallbackId = await resolveIssueViaBody(pr.body, token);
+        issues = fallbackId ? [{ pageId: fallbackId, relation: config_1.config.relations[0] }] : [];
+    }
+    // 1) PR row Status (Draft / Open / Merged / Closed) — one row.
     const rowKey = (0, transitions_1.prRowStatusKey)(event);
     if (rowKey) {
         if (row) {
@@ -9830,30 +9855,33 @@ async function run(event, token) {
             core.info(`no PR row for ${prUrl} (link it first); skipping PR-row status.`);
         }
     }
-    // 2) Issue Status (In PR / Fixes Required / For QA)
+    // 2) Issue Status (In PR / Fixes Required / For QA) — for EVERY linked issue.
     const issueKey = (0, transitions_1.issueStatusKey)(event);
     if (!issueKey) {
         core.info('No issue-status transition for this event.');
         return;
     }
-    if (!issueId) {
-        core.info(`Could not resolve a Notion issue for ${prUrl}; skipping issue status.`);
+    if (issues.length === 0) {
+        core.info(`Could not resolve any Notion issue for ${prUrl}; skipping issue status.`);
         return;
     }
-    if (issueKey === 'for_qa') {
-        const done = await othersAllDone(issueId, row?.id ?? null, token);
-        if (done === false) {
-            core.info('Merged, but sibling PRs are still open; leaving issue status unchanged.');
-            return;
+    for (const { pageId, relation } of issues) {
+        // "For QA" only when all of THIS issue's own PRs are merged/closed.
+        if (issueKey === 'for_qa') {
+            const done = await othersAllDone(pageId, row?.id ?? null, relation.column, token);
+            if (done === false) {
+                core.info(`issue ${pageId}: sibling PRs still open; leaving unchanged.`);
+                continue;
+            }
+            if (done === null) {
+                core.warning(`issue ${pageId}: could not read sibling rows; leaving unchanged (fail-safe).`);
+                continue;
+            }
         }
-        if (done === null) {
-            core.warning('Could not read sibling rows; leaving issue status unchanged (fail-safe).');
-            return;
-        }
+        const name = relation.status[issueKey];
+        core.info(`set issue ${pageId} -> ${name} (via ${relation.column})`);
+        await setStatus(pageId, relation.statusProp, name, token);
     }
-    const name = config_1.config.issueStatus[issueKey];
-    core.info(`set issue -> ${name}`);
-    await setStatus(issueId, config_1.config.issueStatusProp, name, token);
 }
 exports.run = run;
 

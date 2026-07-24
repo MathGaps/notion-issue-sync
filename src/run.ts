@@ -3,6 +3,9 @@ import {config} from './config'
 import {notion} from './notion'
 import {issueStatusKey, parseUniqueId, prRowStatusKey} from './transitions'
 
+type RelationConfig = (typeof config.relations)[number]
+type LinkedIssue = {pageId: string; relation: RelationConfig}
+
 async function findPrRow(prUrl: string | undefined, token: string): Promise<any> {
   if (!prUrl) return null
   const res = await notion('POST', `/databases/${config.prsDb}/query`, token, {
@@ -16,9 +19,16 @@ async function findPrRow(prUrl: string | undefined, token: string): Promise<any>
   return res.results?.[0] ?? null
 }
 
-function issueIdFromRow(row: any): string | null {
-  const rel = row?.properties?.[config.prIssueRelation]?.relation ?? []
-  return rel[0]?.id ?? null
+// Every issue linked to a PR row, across all relation columns (a PR can fix many issues).
+export function resolveIssues(row: any): LinkedIssue[] {
+  const issues: LinkedIssue[] = []
+  for (const relation of config.relations) {
+    const rel = row?.properties?.[relation.column]?.relation ?? []
+    for (const r of rel) {
+      if (r?.id) issues.push({pageId: r.id, relation})
+    }
+  }
+  return issues
 }
 
 async function resolveIssueViaBody(
@@ -51,16 +61,17 @@ async function setStatus(
   return true
 }
 
-// True if every linked PR row OTHER than the current one is Merged/Closed.
-// Returns null if the rows can't be read (caller decides).
+// True if every PR row OTHER than the current one linked to this issue (via the given
+// relation column) is Merged/Closed. Returns null if the rows can't be read.
 async function othersAllDone(
   issueId: string,
   currentRowId: string | null,
+  relationColumn: string,
   token: string
 ): Promise<boolean | null> {
   const done = new Set<string>([config.prStatus.merged, config.prStatus.closed])
   const res = await notion('POST', `/databases/${config.prsDb}/query`, token, {
-    filter: {property: config.prIssueRelation, relation: {contains: issueId}}
+    filter: {property: relationColumn, relation: {contains: issueId}}
   })
   if (res.object === 'error') return null
   const open: unknown[] = []
@@ -70,7 +81,7 @@ async function othersAllDone(
     if (!done.has(status)) open.push([row.properties?.[config.prUrlProp]?.url, status])
   }
   if (open.length) {
-    core.info(`sibling PR(s) not done: ${JSON.stringify(open)}`)
+    core.info(`issue ${issueId}: sibling PR(s) not done: ${JSON.stringify(open)}`)
     return false
   }
   return true
@@ -80,9 +91,17 @@ export async function run(event: any, token: string): Promise<void> {
   const pr = event.pull_request ?? {}
   const prUrl: string | undefined = pr.html_url
   const row = await findPrRow(prUrl, token)
-  const issueId = row ? issueIdFromRow(row) : await resolveIssueViaBody(pr.body, token)
 
-  // 1) PR row Status (Draft / Open / Merged / Closed)
+  // Every issue this PR is linked to (a PR can fix several, across both databases).
+  let issues: LinkedIssue[]
+  if (row) {
+    issues = resolveIssues(row)
+  } else {
+    const fallbackId = await resolveIssueViaBody(pr.body, token)
+    issues = fallbackId ? [{pageId: fallbackId, relation: config.relations[0]}] : []
+  }
+
+  // 1) PR row Status (Draft / Open / Merged / Closed) — one row.
   const rowKey = prRowStatusKey(event)
   if (rowKey) {
     if (row) {
@@ -94,28 +113,32 @@ export async function run(event: any, token: string): Promise<void> {
     }
   }
 
-  // 2) Issue Status (In PR / Fixes Required / For QA)
+  // 2) Issue Status (In PR / Fixes Required / For QA) — for EVERY linked issue.
   const issueKey = issueStatusKey(event)
   if (!issueKey) {
     core.info('No issue-status transition for this event.')
     return
   }
-  if (!issueId) {
-    core.info(`Could not resolve a Notion issue for ${prUrl}; skipping issue status.`)
+  if (issues.length === 0) {
+    core.info(`Could not resolve any Notion issue for ${prUrl}; skipping issue status.`)
     return
   }
-  if (issueKey === 'for_qa') {
-    const done = await othersAllDone(issueId, row?.id ?? null, token)
-    if (done === false) {
-      core.info('Merged, but sibling PRs are still open; leaving issue status unchanged.')
-      return
+
+  for (const {pageId, relation} of issues) {
+    // "For QA" only when all of THIS issue's own PRs are merged/closed.
+    if (issueKey === 'for_qa') {
+      const done = await othersAllDone(pageId, row?.id ?? null, relation.column, token)
+      if (done === false) {
+        core.info(`issue ${pageId}: sibling PRs still open; leaving unchanged.`)
+        continue
+      }
+      if (done === null) {
+        core.warning(`issue ${pageId}: could not read sibling rows; leaving unchanged (fail-safe).`)
+        continue
+      }
     }
-    if (done === null) {
-      core.warning('Could not read sibling rows; leaving issue status unchanged (fail-safe).')
-      return
-    }
+    const name = relation.status[issueKey]
+    core.info(`set issue ${pageId} -> ${name} (via ${relation.column})`)
+    await setStatus(pageId, relation.statusProp, name, token)
   }
-  const name = config.issueStatus[issueKey]
-  core.info(`set issue -> ${name}`)
-  await setStatus(issueId, config.issueStatusProp, name, token)
 }
